@@ -1,0 +1,252 @@
+/* === Reset & Base === */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  --red:         #e05c52;
+  --red-dark:    #c94740;
+  --red-light:   #f5a99e;
+  --teal:        #4c9e8e;
+  --teal-dark:   #357567;
+  --blue:        #4a7fc1;
+  --blue-dark:   #365f93;
+  --bg:          #fdf6f0;
+  --surface:     #ffffff;
+  --text:        #2d2d2d;
+  --text-muted:  #888;
+  --shadow:      0 8px 32px rgba(0,0,0,0.10);
+  --radius:      16px;
+  --transition:  0.22s ease;
+
+  /* current accent — updated by JS */
+  --accent:      var(--red);
+  --accent-dark: var(--red-dark);
+}
+
+body {
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* === App Shell === */
+.app {
+  background: var(--surface);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 2.5rem 2rem 2rem;
+  width: min(420px, calc(100vw - 2rem));
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.4rem;
+}
+
+/* === Header === */
+header h1 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+  color: var(--text);
+}
+
+/* === Mode Buttons === */
+.modes {
+  display: flex;
+  gap: 0.5rem;
+  background: #f3ede8;
+  padding: 5px;
+  border-radius: 50px;
+}
+
+.mode-btn {
+  padding: 0.45rem 1.1rem;
+  border: none;
+  border-radius: 50px;
+  background: transparent;
+  font-size: 0.88rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background var(--transition), color var(--transition);
+  white-space: nowrap;
+}
+
+.mode-btn:hover {
+  color: var(--text);
+}
+
+.mode-btn.active {
+  background: var(--accent);
+  color: #fff;
+}
+
+/* === Timer Circle === */
+.timer-container {
+  position: relative;
+  width: 220px;
+  height: 220px;
+}
+
+.progress-ring {
+  position: absolute;
+  inset: 0;
+  transform: rotate(-90deg);
+}
+
+.progress-ring__track {
+  fill: none;
+  stroke: #f0e9e2;
+  stroke-width: 10;
+}
+
+.progress-ring__fill {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 10;
+  stroke-linecap: round;
+  stroke-dasharray: 628.3;   /* 2π × 100 */
+  stroke-dashoffset: 0;
+  transition: stroke-dashoffset 1s linear, stroke var(--transition);
+}
+
+.timer-display {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 3.2rem;
+  font-weight: 700;
+  letter-spacing: -1px;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+/* === Controls === */
+.controls {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.ctrl-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: background var(--transition), transform var(--transition);
+}
+
+.ctrl-btn:not(.start-btn) {
+  width: 48px;
+  height: 48px;
+  background: #f3ede8;
+  color: var(--text-muted);
+}
+
+.ctrl-btn:not(.start-btn):hover {
+  background: #e8e0d8;
+  color: var(--text);
+  transform: scale(1.05);
+}
+
+.ctrl-btn:not(.start-btn) svg {
+  width: 20px;
+  height: 20px;
+}
+
+.start-btn {
+  width: 68px;
+  height: 68px;
+  background: var(--accent);
+  color: #fff;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.18);
+}
+
+.start-btn:hover {
+  background: var(--accent-dark);
+  transform: scale(1.06);
+}
+
+.start-btn svg {
+  width: 26px;
+  height: 26px;
+}
+
+/* === Session Info === */
+.session-info {
+  font-size: 0.88rem;
+  color: var(--text-muted);
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.separator {
+  opacity: 0.5;
+}
+
+/* === Pomodoro Dot Tracker === */
+.pomodoro-dots {
+  display: flex;
+  gap: 0.6rem;
+}
+
+.dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #f0e9e2;
+  border: 2px solid #ddd5cc;
+  transition: background var(--transition), border-color var(--transition);
+}
+
+.dot.completed {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+/* === Notification Toast === */
+.notification {
+  position: fixed;
+  bottom: 1.5rem;
+  left: 50%;
+  transform: translateX(-50%) translateY(60px);
+  background: var(--text);
+  color: #fff;
+  padding: 0.7rem 1.4rem;
+  border-radius: 50px;
+  font-size: 0.88rem;
+  font-weight: 500;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.3s, transform 0.3s;
+  z-index: 100;
+  white-space: nowrap;
+}
+
+.notification.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+/* === Accent theme switching === */
+body.mode-short-break {
+  --accent:      var(--teal);
+  --accent-dark: var(--teal-dark);
+}
+
+body.mode-long-break {
+  --accent:      var(--blue);
+  --accent-dark: var(--blue-dark);
+}
