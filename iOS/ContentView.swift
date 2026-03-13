@@ -1,106 +1,187 @@
 //
 //  ContentView.swift
-//  Pomodoro (iOS)
+//  Pomodoro (iOS) - Nature Organic
 //
-//  Created on 2026/3/12.
+//  Created on 2026/3/13.
 //
 
 import SwiftUI
 
 struct ContentView: View {
     @StateObject private var viewModel = TimerViewModel(feedbackProvider: NotificationManager.shared)
+    @State private var pulseAnimation = false
     
     var body: some View {
-        NavigationStack {
-            VStack(spacing: 40) {
+        ZStack {
+            // 有機背景
+            DesignSystem.Colors.bgPrimary
+                .ignoresSafeArea()
+            
+            VStack(spacing: DesignSystem.Spacing.xl) {
                 Spacer()
                 
-                // 狀態標籤
-                Text(viewModel.statusText)
-                    .font(.title2)
-                    .fontWeight(.medium)
-                    .foregroundStyle(viewModel.isWorkMode ? .red : .green)
+                // 狀態標籤 - 有機形狀
+                statusBadge
+                    .padding(.top, DesignSystem.Spacing.lg)
                 
-                // 計時器顯示
-                if let targetDate = viewModel.targetDate, viewModel.isRunning {
-                    Text(targetDate, style: .timer)
-                        .font(.system(size: 72, weight: .thin, design: .rounded))
-                        .monospacedDigit()
-                        .foregroundStyle(.primary)
-                } else {
-                    Text(formatTime(viewModel.currentDuration))
-                        .font(.system(size: 72, weight: .thin, design: .rounded))
-                        .monospacedDigit()
-                        .foregroundStyle(.secondary)
-                }
+                // 計時器顯示 - 有機卡片風格
+                timerDisplay
+                    .padding(.horizontal, DesignSystem.Spacing.lg)
                 
                 Spacer()
                 
-                // 控制按鈕
-                VStack(spacing: 20) {
-                    // 開始/暫停按鈕
-                    Button(action: {
-                        viewModel.startTimer()
-                    }) {
-                        Text(viewModel.buttonText)
-                            .font(.title2)
-                            .fontWeight(.semibold)
-                            .foregroundStyle(.white)
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 60)
-                            .background(viewModel.isRunning ? Color.orange : Color.blue)
-                            .clipShape(RoundedRectangle(cornerRadius: 16))
-                    }
-                    
-                    HStack(spacing: 16) {
-                        // 重置按鈕
-                        Button(action: {
-                            viewModel.resetTimer()
-                        }) {
-                            Label("重置", systemImage: "arrow.counterclockwise")
-                                .font(.body)
-                                .fontWeight(.medium)
-                                .foregroundStyle(.white)
-                                .frame(maxWidth: .infinity)
-                                .frame(height: 50)
-                                .background(Color.gray)
-                                .clipShape(RoundedRectangle(cornerRadius: 12))
-                        }
-                        
-                        // 切換模式按鈕
-                        Button(action: {
-                            viewModel.switchMode()
-                        }) {
-                            Label(viewModel.isWorkMode ? "切換休息" : "切換工作", 
-                                  systemImage: viewModel.isWorkMode ? "cup.and.saucer.fill" : "briefcase.fill")
-                                .font(.body)
-                                .fontWeight(.medium)
-                                .foregroundStyle(.white)
-                                .frame(maxWidth: .infinity)
-                                .frame(height: 50)
-                                .background(viewModel.isWorkMode ? Color.green : Color.red)
-                                .clipShape(RoundedRectangle(cornerRadius: 12))
-                        }
-                        .disabled(viewModel.isRunning)
-                        .opacity(viewModel.isRunning ? 0.5 : 1.0)
-                    }
-                }
-                .padding(.horizontal)
+                // 控制按鈕組
+                controlButtons
+                    .padding(.horizontal, DesignSystem.Spacing.lg)
                 
                 Spacer()
             }
-            .padding()
-            .navigationTitle("番茄鐘")
-            .navigationBarTitleDisplayMode(.inline)
-            .onAppear {
-                // 清除通知角標
-                NotificationManager.shared.clearBadge()
+        }
+        .onAppear {
+            NotificationManager.shared.clearBadge()
+            withAnimation(DesignSystem.animationNormal.repeatForever(autoreverses: true)) {
+                pulseAnimation = true
+            }
+        }
+        .onDisappear {
+            // 在 view 消失时暂停动画
+            pulseAnimation = false
+        }
+    }
+    
+    // MARK: - Status Badge
+    private var statusBadge: some View {
+        HStack(spacing: DesignSystem.Spacing.sm) {
+            Circle()
+                .fill(viewModel.isWorkMode ? DesignSystem.Colors.workMode : DesignSystem.Colors.restMode)
+                .frame(width: 12, height: 12)
+                .scaleEffect(pulseAnimation ? 1.2 : 1.0)
+            
+            Text(viewModel.statusText)
+                .font(.system(size: 18, weight: .semibold, design: .rounded))
+                .foregroundStyle(DesignSystem.Colors.textPrimary)
+        }
+        .padding(.horizontal, DesignSystem.Spacing.lg)
+        .padding(.vertical, DesignSystem.Spacing.md)
+        .organicCard(color: DesignSystem.Colors.bgSecondary)
+    }
+    
+    // MARK: - Timer Display
+    private var timerDisplay: some View {
+        VStack(spacing: DesignSystem.Spacing.md) {
+            if let targetDate = viewModel.targetDate, viewModel.isRunning {
+                Text(targetDate, style: .timer)
+                    .font(.system(size: 72, weight: .medium, design: .rounded))
+                    .monospacedDigit()
+                    .foregroundStyle(
+                        LinearGradient(
+                            colors: [
+                                viewModel.isWorkMode ? DesignSystem.Colors.workMode : DesignSystem.Colors.restMode,
+                                viewModel.isWorkMode ? DesignSystem.Colors.brandAccent : DesignSystem.Colors.brandSecondary
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+            } else {
+                Text(formatTime(viewModel.currentDuration))
+                    .font(.system(size: 72, weight: .light, design: .rounded))
+                    .monospacedDigit()
+                    .foregroundStyle(DesignSystem.Colors.textMuted)
+            }
+            
+            // 進度指示器
+            if viewModel.isRunning {
+                ProgressView()
+                    .tint(viewModel.isWorkMode ? DesignSystem.Colors.workMode : DesignSystem.Colors.restMode)
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, DesignSystem.Spacing.xxl)
+        .organicCard()
+    }
+    
+    // MARK: - Control Buttons
+    private var controlButtons: some View {
+        VStack(spacing: DesignSystem.Spacing.md) {
+            // 主要按鈕 - 開始/暫停
+            Button(action: {
+                withAnimation(DesignSystem.animationFast) {
+                    viewModel.startTimer()
+                }
+            }) {
+                HStack(spacing: DesignSystem.Spacing.sm) {
+                    Image(systemName: viewModel.isRunning ? "pause.fill" : "play.fill")
+                        .font(.title3)
+                    Text(viewModel.buttonText)
+                        .font(.system(size: 20, weight: .semibold, design: .rounded))
+                }
+                .foregroundStyle(.white)
+                .frame(maxWidth: .infinity)
+                .frame(height: 60)
+                .background(
+                    RoundedRectangle(cornerRadius: DesignSystem.Radius.organic)
+                        .fill(
+                            LinearGradient(
+                                colors: viewModel.isRunning ? 
+                                    [DesignSystem.Colors.warning, DesignSystem.Colors.warning.opacity(0.8)] :
+                                    [DesignSystem.Colors.brandPrimary, DesignSystem.Colors.brandAccent],
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            )
+                        )
+                )
+                .organicShadow(level: 2)
+            }
+            .buttonStyle(.plain)
+            
+            HStack(spacing: DesignSystem.Spacing.md) {
+                // 重置按鈕
+                Button(action: {
+                    withAnimation(DesignSystem.animationFast) {
+                        viewModel.resetTimer()
+                    }
+                }) {
+                    HStack(spacing: DesignSystem.Spacing.xs) {
+                        Image(systemName: "arrow.counterclockwise")
+                        Text("重置")
+                            .font(.system(size: 16, weight: .medium, design: .rounded))
+                    }
+                    .foregroundStyle(DesignSystem.Colors.textSecondary)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 50)
+                    .organicCard(color: .white)
+                }
+                .buttonStyle(.plain)
+                
+                // 切換模式按鈕
+                Button(action: {
+                    withAnimation(DesignSystem.animationFast) {
+                        viewModel.switchMode()
+                    }
+                }) {
+                    HStack(spacing: DesignSystem.Spacing.xs) {
+                        Image(systemName: viewModel.isWorkMode ? "cup.and.saucer.fill" : "briefcase.fill")
+                        Text(viewModel.isWorkMode ? "休息" : "工作")
+                            .font(.system(size: 16, weight: .medium, design: .rounded))
+                    }
+                    .foregroundStyle(.white)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 50)
+                    .background(
+                        RoundedRectangle(cornerRadius: DesignSystem.Radius.organic)
+                            .fill(viewModel.isWorkMode ? DesignSystem.Colors.restMode : DesignSystem.Colors.workMode)
+                    )
+                    .organicShadow()
+                }
+                .buttonStyle(.plain)
+                .disabled(viewModel.isRunning)
+                .opacity(viewModel.isRunning ? 0.5 : 1.0)
             }
         }
     }
     
     // MARK: - Helper Methods
-    
     private func formatTime(_ timeInterval: TimeInterval) -> String {
         let minutes = Int(timeInterval) / 60
         let seconds = Int(timeInterval) % 60

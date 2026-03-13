@@ -2,6 +2,10 @@
 #
 # gitignore contributors: remember to update Global/Xcode.gitignore, Objective-C.gitignore & Swift.gitignore
 
+## XcodeGen - 生成的專案文件（由 project.yml 生成）
+*.xcodeproj
+*.xcworkspace
+
 ## User settings
 xcuserdata/
 

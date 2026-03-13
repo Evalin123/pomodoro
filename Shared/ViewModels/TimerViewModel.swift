@@ -45,9 +45,14 @@ class TimerViewModel: ObservableObject {
     // MARK: - Initialization
     init(feedbackProvider: FeedbackProvider) {
         self.feedbackProvider = feedbackProvider
-        restoreState()
-        startTimerMonitoring()
+        // 延迟恢复状态，避免初始化时的崩溃
+        Task { @MainActor in
+            self.restoreState()
+            self.startTimerMonitoring()
+        }
     }
+    
+    // AnyCancellable 会在释放时自动取消，无需手动 deinit
     
     // MARK: - Public Methods
     func startTimer() {
@@ -96,7 +101,6 @@ class TimerViewModel: ObservableObject {
     // MARK: - Private Methods
     private func restoreState() {
         // 恢復儲存的狀態
-        isRunning = isRunningStorage
         isWorkMode = isWorkModeStorage
         
         // 恢復目標時間
@@ -105,10 +109,16 @@ class TimerViewModel: ObservableObject {
             // 檢查是否已經過期
             if restoredDate > Date.now {
                 targetDate = restoredDate
+                isRunning = isRunningStorage
             } else {
-                // 計時器已過期，觸發完成
-                completeTimer()
+                // 計時器已過期，重置狀態
+                isRunning = false
+                isRunningStorage = false
+                targetDate = nil
+                targetDateTimestamp = 0
             }
+        } else {
+            isRunning = false
         }
     }
     
