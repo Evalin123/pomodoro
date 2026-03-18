@@ -37,8 +37,19 @@ enum DesignSystem {
         static let borderSubtle = Color(hex: "E2E8F0")
         
         // Work/Rest specific
-        static let workMode = Color(hex: "38A169")          // 綠色代表工作
-        static let restMode = Color(hex: "805AD5")          // 紫色代表休息
+        static let workMode = Color(hex: "D69E2E")          // 橙色代表工作（專注/警示）
+        static let restMode = Color(hex: "38A169")          // 綠色代表休息（自然/放鬆）
+    }
+    
+    // MARK: - Typography
+    enum FontSize {
+        static let xs: CGFloat = 12
+        static let sm: CGFloat = 14
+        static let base: CGFloat = 16
+        static let lg: CGFloat = 18
+        static let xl: CGFloat = 24
+        static let xxl: CGFloat = 32
+        static let huge: CGFloat = 64  // 計時器大字
     }
     
     // MARK: - Radius
@@ -64,6 +75,26 @@ enum DesignSystem {
     // MARK: - Animation
     static let animationFast = Animation.easeOut(duration: 0.2)
     static let animationNormal = Animation.easeOut(duration: 0.4)
+    static let animationSlow = Animation.easeOut(duration: 1.0)
+}
+
+// MARK: - Additional Modifiers
+extension View {
+    /// Glass morphism effect - semi-transparent blur background
+    func glassMorphism() -> some View {
+        self
+            .background(.ultraThinMaterial)
+    }
+    
+    /// Circular progress shadow with glow effect
+    func progressGlow(color: Color, isActive: Bool = true) -> some View {
+        self.shadow(
+            color: isActive ? color.opacity(0.4) : Color.clear,
+            radius: 20,
+            x: 0,
+            y: 4
+        )
+    }
 }
 
 // MARK: - Color Extension (Hex Support)

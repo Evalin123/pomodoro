@@ -54,18 +54,12 @@ targets:
             PRODUCT_BUNDLE_IDENTIFIER: com.yourname.Pomodoro
             INFOPLIST_FILE: macOS/Info.plist
             ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
-            CODE_SIGN_STYLE: Automatic
-            DEVELOPMENT_TEAM: ""
+            CODE_SIGN_ALLOW_ENTITLEMENTS_MODIFICATION: YES
         scheme:
             testTargets: []
             gatherCoverageData: false
         entitlements:
             path: macOS/Pomodoro.entitlements
-            properties:
-                com.apple.security.app-sandbox: true
-                com.apple.security.application-groups:
-                    - group.com.yourname.Pomodoro
-                com.apple.security.user-notifications.application: true
 
     Pomodoro-watchOS:
         type: application

@@ -23,14 +23,35 @@ class NotificationManager: FeedbackProvider {
     
     /// 請求通知權限
     func requestPermission() async -> Bool {
-        guard !hasRequestedPermission else { return true }
+        // 先檢查當前權限狀態
+        let settings = await notificationCenter.notificationSettings()
         
-        do {
-            let granted = try await notificationCenter.requestAuthorization(options: [.alert, .sound, .badge])
+        switch settings.authorizationStatus {
+        case .authorized, .provisional:
             hasRequestedPermission = true
-            return granted
-        } catch {
-            print("通知權限請求失敗: \(error.localizedDescription)")
+            return true
+        case .denied:
+            print("⚠️ 通知權限已被拒絕。請在系統設定中啟用通知。")
+            hasRequestedPermission = true
+            return false
+        case .notDetermined:
+            // 尚未請求，現在請求
+            do {
+                let granted = try await notificationCenter.requestAuthorization(options: [.alert, .sound, .badge])
+                hasRequestedPermission = true
+                if granted {
+                    print("✅ 通知權限已授予")
+                } else {
+                    print("⚠️ 用戶拒絕了通知權限")
+                }
+                return granted
+            } catch {
+                print("❌ 通知權限請求失敗: \(error.localizedDescription)")
+                return false
+            }
+        case .ephemeral:
+            return false
+        @unknown default:
             return false
         }
     }
@@ -44,10 +65,10 @@ class NotificationManager: FeedbackProvider {
     }
     
     func scheduleCompletionNotification(in timeInterval: TimeInterval, isWorkMode: Bool) async {
-        // 請求權限（如果尚未請求）
+        // 請求權限（如果尚未請求），但不阻塞計時器
         let granted = await requestPermission()
         guard granted else {
-            print("通知權限未授予")
+            print("⚠️ 通知權限未授予，計時器將繼續運行但不會顯示通知")
             return
         }
         
@@ -68,9 +89,9 @@ class NotificationManager: FeedbackProvider {
         // 排程通知
         do {
             try await notificationCenter.add(request)
-            print("通知已排程：\(timeInterval) 秒後")
+            print("✅ 通知已排程：\(Int(timeInterval)) 秒後")
         } catch {
-            print("排程通知失敗: \(error.localizedDescription)")
+            print("❌ 排程通知失敗: \(error.localizedDescription)")
         }
     }
     
