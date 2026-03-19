@@ -80,6 +80,22 @@ enum DesignSystem {
 
 // MARK: - Additional Modifiers
 extension View {
+    /// Universal app background gradient: orange (top right) to green (bottom left)
+    func appBackgroundGradient() -> some View {
+        self.background(
+            LinearGradient(
+                colors: [
+                    DesignSystem.Colors.workMode.opacity(0.35),
+                    Color(hex: "F8F7F4"),
+                    DesignSystem.Colors.restMode.opacity(0.35)
+                ],
+                startPoint: .topTrailing,
+                endPoint: .bottomLeading
+            )
+            .ignoresSafeArea()
+        )
+    }
+    
     /// Glass morphism effect - semi-transparent blur background
     func glassMorphism() -> some View {
         self

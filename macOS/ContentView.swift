@@ -27,19 +27,7 @@ struct ContentView: View {
                 SidebarView(viewModel: viewModel, showSettings: $showSettings)
             }
         }
-        .background(
-            // Three-color gradient background
-            LinearGradient(
-                stops: [
-                    .init(color: Color(hex: "F8F7F4"), location: 0),
-                    .init(color: Color(hex: "F0EDE6"), location: 0.5),
-                    .init(color: Color(hex: "E8E5DC"), location: 1)
-                ],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-            .ignoresSafeArea()
-        )
+        .appBackgroundGradient()
         .frame(minWidth: 900, idealWidth: 1000, minHeight: 600, idealHeight: 700)
         .onAppear {
             NotificationManager.shared.clearBadge()
