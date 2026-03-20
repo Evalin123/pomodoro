@@ -46,6 +46,7 @@ class TimerViewModel: ObservableObject {
     @AppStorage("focusMinutes") var focusMinutes: Int = 25
     @AppStorage("breakMinutes") var breakMinutes: Int = 5
     @AppStorage("pausedRemainingTime") private var pausedRemainingTime: TimeInterval = 0
+    @AppStorage("runningDuration") private var runningDuration: TimeInterval = 0  // 運行時的初始時長
     
     // MARK: - Private Properties
     private var timerCancellable: AnyCancellable?
@@ -64,13 +65,13 @@ class TimerViewModel: ObservableObject {
     
     var progress: Double {
         if isRunning, let targetDate = targetDate {
-            // 運行中：根據已過時間計算進度
-            let totalDuration = currentDuration
+            // 運行中：使用保存的運行時長計算進度，避免設置更改影響進度條
+            let totalDuration = runningDuration > 0 ? runningDuration : currentDuration
             let elapsed = totalDuration - targetDate.timeIntervalSinceNow
             return min(max(elapsed / totalDuration, 0), 1)
         } else if pausedRemainingTime > 0 {
-            // 暫停時：根據剩餘時間計算已完成的進度
-            let totalDuration = currentDuration
+            // 暫停時：使用保存的運行時長計算進度
+            let totalDuration = runningDuration > 0 ? runningDuration : currentDuration
             let elapsed = totalDuration - pausedRemainingTime
             return min(max(elapsed / totalDuration, 0), 1)
         } else {
@@ -124,6 +125,12 @@ class TimerViewModel: ObservableObject {
         // 啟動計時器
         // 檢查是否有暫停的剩餘時間
         let duration = pausedRemainingTime > 0 ? pausedRemainingTime : currentDuration
+        
+        // 保存運行時的初始時長（僅在新啟動時，不在恢復暫停時）
+        if pausedRemainingTime == 0 {
+            runningDuration = duration
+        }
+        
         targetDate = Date.now.addingTimeInterval(duration)
         targetDateTimestamp = targetDate?.timeIntervalSince1970 ?? 0
         isRunning = true
@@ -156,6 +163,7 @@ class TimerViewModel: ObservableObject {
     func resetTimer() {
         pauseTimer()
         pausedRemainingTime = 0  // 重置時清除暫停時間
+        runningDuration = 0  // 清除運行時長
         isWorkMode = true
         isWorkModeStorage = true
     }
@@ -212,10 +220,10 @@ class TimerViewModel: ObservableObject {
     }
     
     private func completeTimer() {
-        // 記錄完成的會話
+        // 記錄完成的會話（使用實際運行的時長）
         let completedSession = Session(
             type: isWorkMode ? .focus : .break,
-            duration: currentDuration,
+            duration: runningDuration > 0 ? runningDuration : currentDuration,
             timestamp: Date()
         )
         sessions.append(completedSession)
@@ -231,6 +239,7 @@ class TimerViewModel: ObservableObject {
         targetDate = nil
         targetDateTimestamp = 0
         pausedRemainingTime = 0  // 清除暫停時間
+        runningDuration = 0  // 清除運行時長
         
         // 觸發平台特定的反饋
         Task {
