@@ -57,7 +57,7 @@ struct TimerPageView: View {
                 endPoint: .bottomTrailing
             )
             .ignoresSafeArea()
-            .animation(.easeInOut(duration: 1.5), value: viewModel.isWorkMode)
+            .animation(.easeInOut(duration: 1.5), value: viewModel.sessionMode)
             
             VStack(spacing: 0) {
                 Spacer()
@@ -115,7 +115,14 @@ struct TimerPageView: View {
     }
     
     private var themeColor: Color {
-        viewModel.isWorkMode ? Color(hex: "D69E2E") : Color(hex: "38A169")
+        switch viewModel.sessionMode {
+        case .work:
+            return Color(hex: "D69E2E")  // 橘色
+        case .shortBreak:
+            return Color(hex: "38A169")  // 綠色
+        case .longBreak:
+            return Color(hex: "3F51B5")  // 藍色
+        }
     }
     
     private var currentMinutes: Int {
@@ -217,6 +224,7 @@ struct SettingsPageView: View {
     @ObservedObject var viewModel: TimerViewModel
     @State private var crownValue: Double = 0
     @State private var tempMinutes: Int = 25
+    @State private var shakeOffset: CGFloat = 0
     
     var body: some View {
         ZStack {
@@ -230,11 +238,11 @@ struct SettingsPageView: View {
                 endPoint: .bottomTrailing
             )
             .ignoresSafeArea()
-            .animation(.easeInOut(duration: 1.5), value: viewModel.isWorkMode)
+            .animation(.easeInOut(duration: 1.5), value: viewModel.sessionMode)
             
             VStack(spacing: 16) {
-                // Title
-                Text(viewModel.isWorkMode ? "Focus Time" : "Break Time")
+                // Title (根據模式顯示)
+                Text(modeTitle)
                     .font(.system(size: 14, weight: .semibold, design: .rounded))
                     .foregroundStyle(.white.opacity(0.9))
                     .textCase(.uppercase)
@@ -242,11 +250,12 @@ struct SettingsPageView: View {
                 
                 Spacer()
                 
-                // Large time display
+                // Large time display (帶晃動動畫)
                 Text("\(tempMinutes)")
                     .font(.system(size: 72, weight: .bold, design: .rounded))
                     .foregroundStyle(.white)
                     .monospacedDigit()
+                    .offset(x: shakeOffset)
                 
                 Text("minutes")
                     .font(.system(size: 14, weight: .medium))
@@ -277,27 +286,20 @@ struct SettingsPageView: View {
                 }
                 .padding(.horizontal, 8)
                 
-                Text("Turn Digital Crown to adjust")
+                // Hint text
+                Text(viewModel.isRunning ? "Turn to add more time" : "Turn Digital Crown to adjust")
                     .font(.system(size: 11, weight: .regular))
                     .foregroundStyle(.white.opacity(0.6))
                     .padding(.top, 4)
                 
                 Spacer()
-                
-                // Save indicator
-                if tempMinutes != currentStoredMinutes {
-                    Text("← Swipe to save")
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundStyle(themeColor)
-                        .padding(.bottom, 8)
-                }
             }
             .padding(.horizontal, 20)
             .padding(.vertical, 16)
             .focusable(true)
             .digitalCrownRotation(
                 $crownValue,
-                from: 1,
+                from: Double(viewModel.minAllowedMinutes),
                 through: 60,
                 by: 1,
                 sensitivity: .medium,
@@ -305,32 +307,80 @@ struct SettingsPageView: View {
                 isHapticFeedbackEnabled: true
             )
             .onChange(of: crownValue) { oldValue, newValue in
-                tempMinutes = Int(newValue)
+                let newMinutes = Int(newValue)
+                
+                // 嘗試更新設定（即時保存）
+                let allowed = updateCurrentModeSetting(to: newMinutes)
+                
+                if !allowed {
+                    // 不允許減少，觸發 failure haptic 和晃動動畫
+                    WKInterfaceDevice.current().play(.failure)
+                    triggerShakeAnimation()
+                    // 恢復原值
+                    crownValue = Double(tempMinutes)
+                } else {
+                    // 允許，更新 tempMinutes
+                    tempMinutes = newMinutes
+                }
             }
         }
         .onAppear {
-            tempMinutes = currentStoredMinutes
+            tempMinutes = viewModel.currentMinutes
             crownValue = Double(tempMinutes)
         }
-        .onDisappear {
-            // Save on swipe away
-            if tempMinutes != currentStoredMinutes {
-                if viewModel.isWorkMode {
-                    viewModel.updateSettings(focusMinutes: tempMinutes, breakMinutes: viewModel.breakMinutes)
-                } else {
-                    viewModel.updateSettings(focusMinutes: viewModel.focusMinutes, breakMinutes: tempMinutes)
-                }
-                HapticManager.shared.playClick()
-            }
+    }
+    
+    private var modeTitle: String {
+        switch viewModel.sessionMode {
+        case .work:
+            return "Focus Time"
+        case .shortBreak:
+            return "Short Break"
+        case .longBreak:
+            return "Long Break"
         }
     }
     
     private var themeColor: Color {
-        viewModel.isWorkMode ? Color(hex: "D69E2E") : Color(hex: "38A169")
+        switch viewModel.sessionMode {
+        case .work:
+            return Color(hex: "D69E2E")  // 橘色
+        case .shortBreak:
+            return Color(hex: "38A169")  // 綠色
+        case .longBreak:
+            return Color(hex: "3F51B5")  // 藍色
+        }
     }
     
-    private var currentStoredMinutes: Int {
-        viewModel.isWorkMode ? viewModel.focusMinutes : viewModel.breakMinutes
+    // 更新當前模式的設定
+    private func updateCurrentModeSetting(to minutes: Int) -> Bool {
+        switch viewModel.sessionMode {
+        case .work:
+            return viewModel.updateSettings(focusMinutes: minutes)
+        case .shortBreak:
+            return viewModel.updateSettings(breakMinutes: minutes)
+        case .longBreak:
+            return viewModel.updateSettings(longBreakMinutes: minutes)
+        }
+    }
+    
+    // 觸發晃動動畫
+    private func triggerShakeAnimation() {
+        withAnimation(.spring(response: 0.2, dampingFraction: 0.3)) {
+            shakeOffset = 10
+        }
+        
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            withAnimation(.spring(response: 0.2, dampingFraction: 0.3)) {
+                shakeOffset = -10
+            }
+        }
+        
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+            withAnimation(.spring(response: 0.2, dampingFraction: 0.5)) {
+                shakeOffset = 0
+            }
+        }
     }
 }
 

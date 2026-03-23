@@ -9,6 +9,13 @@ import Foundation
 import SwiftUI
 import Combine
 
+// MARK: - Session Mode
+enum SessionMode: String, Codable {
+    case work
+    case shortBreak
+    case longBreak
+}
+
 // MARK: - Session Model
 struct Session: Identifiable, Codable {
     let id: UUID
@@ -33,7 +40,7 @@ struct Session: Identifiable, Codable {
 class TimerViewModel: ObservableObject {
     // MARK: - Published Properties
     @Published var isRunning: Bool = false
-    @Published var isWorkMode: Bool = true
+    @Published var sessionMode: SessionMode = .work
     @Published var targetDate: Date?
     @Published var sessions: [Session] = []  // 會話歷史（記憶體存儲）
     @Published var sessionsCompleted: Int = 0  // 完成的專注會話數
@@ -42,9 +49,10 @@ class TimerViewModel: ObservableObject {
     // MARK: - AppStorage Properties
     @AppStorage("targetDateTimestamp") private var targetDateTimestamp: Double = 0
     @AppStorage("isRunningStorage") private var isRunningStorage: Bool = false
-    @AppStorage("isWorkModeStorage") private var isWorkModeStorage: Bool = true
+    @AppStorage("sessionModeStorage") private var sessionModeStorage: String = SessionMode.work.rawValue
     @AppStorage("focusMinutes") var focusMinutes: Int = 25
     @AppStorage("breakMinutes") var breakMinutes: Int = 5
+    @AppStorage("longBreakMinutes") var longBreakMinutes: Int = 15
     @AppStorage("pausedRemainingTime") private var pausedRemainingTime: TimeInterval = 0
     @AppStorage("runningDuration") private var runningDuration: TimeInterval = 0  // 運行時的初始時長
     
@@ -54,7 +62,37 @@ class TimerViewModel: ObservableObject {
     
     // MARK: - Computed Properties
     var currentDuration: TimeInterval {
-        isWorkMode ? TimeInterval(focusMinutes * 60) : TimeInterval(breakMinutes * 60)
+        switch sessionMode {
+        case .work:
+            return TimeInterval(focusMinutes * 60)
+        case .shortBreak:
+            return TimeInterval(breakMinutes * 60)
+        case .longBreak:
+            return TimeInterval(longBreakMinutes * 60)
+        }
+    }
+    
+    var currentMinutes: Int {
+        switch sessionMode {
+        case .work:
+            return focusMinutes
+        case .shortBreak:
+            return breakMinutes
+        case .longBreak:
+            return longBreakMinutes
+        }
+    }
+    
+    var minAllowedMinutes: Int {
+        if !isRunning && pausedRemainingTime == 0 {
+            return 1  // 完全未開始時可以自由調整
+        }
+        // 運行中或暫停時只能增加，不能減少
+        return currentMinutes
+    }
+    
+    var isWorkMode: Bool {
+        sessionMode == .work
     }
     
     var totalFocusTime: TimeInterval {
@@ -81,7 +119,14 @@ class TimerViewModel: ObservableObject {
     }
     
     var statusText: String {
-        isWorkMode ? "工作時間" : "休息時間"
+        switch sessionMode {
+        case .work:
+            return "工作時間"
+        case .shortBreak:
+            return "短休息"
+        case .longBreak:
+            return "長休息"
+        }
     }
     
     var buttonText: String {
@@ -164,19 +209,27 @@ class TimerViewModel: ObservableObject {
         pauseTimer()
         pausedRemainingTime = 0  // 重置時清除暫停時間
         runningDuration = 0  // 清除運行時長
-        isWorkMode = true
-        isWorkModeStorage = true
+        sessionMode = .work
+        sessionModeStorage = SessionMode.work.rawValue
     }
     
     func switchMode() {
-        isWorkMode.toggle()
-        isWorkModeStorage = isWorkMode
+        // 手動切換模式（如果需要的話）
+        switch sessionMode {
+        case .work:
+            sessionMode = .shortBreak
+        case .shortBreak, .longBreak:
+            sessionMode = .work
+        }
+        sessionModeStorage = sessionMode.rawValue
     }
     
     // MARK: - Private Methods
     private func restoreState() {
-        // 恢復儲存的狀態
-        isWorkMode = isWorkModeStorage
+        // 恢復 sessionMode
+        if let mode = SessionMode(rawValue: sessionModeStorage) {
+            sessionMode = mode
+        }
         
         // 恢復目標時間
         if targetDateTimestamp > 0 {
@@ -222,14 +275,14 @@ class TimerViewModel: ObservableObject {
     private func completeTimer() {
         // 記錄完成的會話（使用實際運行的時長）
         let completedSession = Session(
-            type: isWorkMode ? .focus : .break,
+            type: sessionMode == .work ? .focus : .break,
             duration: runningDuration > 0 ? runningDuration : currentDuration,
             timestamp: Date()
         )
         sessions.append(completedSession)
         
         // 如果是工作會話，增加計數
-        if isWorkMode {
+        if sessionMode == .work {
             sessionsCompleted += 1
         }
         
@@ -243,24 +296,85 @@ class TimerViewModel: ObservableObject {
         
         // 觸發平台特定的反饋
         Task {
-            await feedbackProvider.triggerCompletion(isWorkMode: isWorkMode)
+            await feedbackProvider.triggerCompletion(isWorkMode: sessionMode == .work)
         }
         
         // 自動切換模式
-        isWorkMode.toggle()
-        isWorkModeStorage = isWorkMode
+        if sessionMode == .work {
+            // 工作完成後，判斷進入小休息還是大休息
+            if sessionsCompleted % 4 == 0 {
+                // 每 4 個工作後進入大休息
+                sessionMode = .longBreak
+            } else {
+                sessionMode = .shortBreak
+            }
+        } else if sessionMode == .longBreak {
+            // 大休息結束，清空番茄點，進入工作
+            sessionsCompleted = 0
+            sessionMode = .work
+        } else {
+            // 小休息結束，進入工作
+            sessionMode = .work
+        }
+        
+        sessionModeStorage = sessionMode.rawValue
         
         // 自動開始下一個週期（可選，註解掉則不自動開始）
         // startTimer()
     }
     
     // MARK: - Settings Methods
-    func updateSettings(focusMinutes: Int, breakMinutes: Int) {
-        self.focusMinutes = focusMinutes
-        self.breakMinutes = breakMinutes
-        // 清除暫停的剩餘時間，以便使用新的設定
-        if !isRunning {
+    @discardableResult
+    func updateSettings(focusMinutes: Int? = nil, breakMinutes: Int? = nil, longBreakMinutes: Int? = nil) -> Bool {
+        // 檢查是否嘗試減少運行中或暫停時的時間
+        if isRunning || pausedRemainingTime > 0 {
+            switch sessionMode {
+            case .work:
+                if let newFocus = focusMinutes, newFocus < self.focusMinutes {
+                    return false  // 不允許減少
+                }
+            case .shortBreak:
+                if let newBreak = breakMinutes, newBreak < self.breakMinutes {
+                    return false
+                }
+            case .longBreak:
+                if let newLong = longBreakMinutes, newLong < self.longBreakMinutes {
+                    return false
+                }
+            }
+        }
+        
+        // 更新設定
+        if let newFocus = focusMinutes {
+            self.focusMinutes = newFocus
+        }
+        if let newBreak = breakMinutes {
+            self.breakMinutes = newBreak
+        }
+        if let newLong = longBreakMinutes {
+            self.longBreakMinutes = newLong
+        }
+        
+        // 如果運行中，需要調整 targetDate 和 runningDuration
+        if isRunning, let targetDate = targetDate {
+            let remaining = max(0, targetDate.timeIntervalSinceNow)
+            let newDuration = currentDuration
+            let newTargetDate = Date.now.addingTimeInterval(remaining + (newDuration - runningDuration))
+            self.targetDate = newTargetDate
+            self.targetDateTimestamp = newTargetDate.timeIntervalSince1970
+            self.runningDuration = newDuration
+        } else if pausedRemainingTime > 0 {
+            // 如果暫停中，調整暫停的剩餘時間和運行時長
+            let oldDuration = runningDuration > 0 ? runningDuration : currentDuration
+            let newDuration = currentDuration
+            let difference = newDuration - oldDuration
+            pausedRemainingTime = max(0, pausedRemainingTime + difference)
+            runningDuration = newDuration
+        } else {
+            // 完全未開始，清除暫停時間
             pausedRemainingTime = 0
         }
+        
+        return true  // 允許更新
     }
 }
