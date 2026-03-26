@@ -7,6 +7,7 @@
 
 import Foundation
 import UserNotifications
+import os.log
 
 /// iOS 和 macOS 的通知管理器
 /// 實現 FeedbackProvider 協議
@@ -15,7 +16,7 @@ class NotificationManager: FeedbackProvider {
     static let shared = NotificationManager()
     
     private let notificationCenter = UNUserNotificationCenter.current()
-    private var hasRequestedPermission = false
+    private static let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "com.pomodoro", category: "Notification")
     
     private init() {}
     
@@ -28,25 +29,21 @@ class NotificationManager: FeedbackProvider {
         
         switch settings.authorizationStatus {
         case .authorized, .provisional:
-            hasRequestedPermission = true
             return true
         case .denied:
-            print("⚠️ 通知權限已被拒絕。請在系統設定中啟用通知。")
-            hasRequestedPermission = true
+            Self.logger.warning("通知權限已被拒絕。請在系統設定中啟用通知。")
             return false
         case .notDetermined:
-            // 尚未請求，現在請求
             do {
                 let granted = try await notificationCenter.requestAuthorization(options: [.alert, .sound, .badge])
-                hasRequestedPermission = true
                 if granted {
-                    print("✅ 通知權限已授予")
+                    Self.logger.info("通知權限已授予")
                 } else {
-                    print("⚠️ 用戶拒絕了通知權限")
+                    Self.logger.warning("用戶拒絕了通知權限")
                 }
                 return granted
             } catch {
-                print("❌ 通知權限請求失敗: \(error.localizedDescription)")
+                Self.logger.error("通知權限請求失敗: \(error.localizedDescription)")
                 return false
             }
         case .ephemeral:
@@ -59,16 +56,14 @@ class NotificationManager: FeedbackProvider {
     // MARK: - FeedbackProvider Implementation
     
     func triggerCompletion(isWorkMode: Bool) async {
-        // 在完成時不需要額外操作，通知已經在之前排程
-        // 這裡可以加入額外的音效或其他反饋
-        print("計時器完成：\(isWorkMode ? "工作" : "休息")時間結束")
+        Self.logger.info("計時器完成：\(isWorkMode ? "工作" : "休息")時間結束")
     }
     
     func scheduleCompletionNotification(in timeInterval: TimeInterval, isWorkMode: Bool) async {
         // 請求權限（如果尚未請求），但不阻塞計時器
         let granted = await requestPermission()
         guard granted else {
-            print("⚠️ 通知權限未授予，計時器將繼續運行但不會顯示通知")
+            Self.logger.warning("通知權限未授予，計時器將繼續運行但不會顯示通知")
             return
         }
         
@@ -89,15 +84,15 @@ class NotificationManager: FeedbackProvider {
         // 排程通知
         do {
             try await notificationCenter.add(request)
-            print("✅ 通知已排程：\(Int(timeInterval)) 秒後")
+            Self.logger.info("通知已排程：\(Int(timeInterval)) 秒後")
         } catch {
-            print("❌ 排程通知失敗: \(error.localizedDescription)")
+            Self.logger.error("排程通知失敗: \(error.localizedDescription)")
         }
     }
     
     func cancelNotifications() async {
         notificationCenter.removePendingNotificationRequests(withIdentifiers: ["pomodoroCompletion"])
-        print("已取消待處理的通知")
+        Self.logger.info("已取消待處理的通知")
     }
     
     // MARK: - Badge Management

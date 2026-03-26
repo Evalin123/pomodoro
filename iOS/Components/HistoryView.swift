@@ -80,6 +80,12 @@ struct HistoryView: View {
 struct SessionRowView: View {
     let session: Session
     
+    private static let timeFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "h:mm a"
+        return formatter
+    }()
+    
     var body: some View {
         HStack(spacing: DesignSystem.Spacing.md) {
             // Icon
@@ -131,9 +137,7 @@ struct SessionRowView: View {
     }
     
     private func formatTime(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "h:mm a"
-        return formatter.string(from: date)
+        Self.timeFormatter.string(from: date)
     }
     
     private func formatDuration(_ timeInterval: TimeInterval) -> String {

@@ -42,9 +42,13 @@ class TimerViewModel: ObservableObject {
     @Published var isRunning: Bool = false
     @Published var sessionMode: SessionMode = .work
     @Published var targetDate: Date?
-    @Published var sessions: [Session] = []  // 會話歷史（記憶體存儲）
+    @Published var sessions: [Session] = []  // 會話歷史
     @Published var sessionsCompleted: Int = 0  // 完成的專注會話數
     @Published var uiUpdateTrigger: Int = 0  // 用於觸發 UI 更新
+    
+    // MARK: - Persistence Keys
+    private static let sessionsKey = "savedSessions"
+    private static let sessionsCompletedKey = "sessionsCompletedCount"
     
     // MARK: - AppStorage Properties
     @AppStorage("targetDateTimestamp") private var targetDateTimestamp: Double = 0
@@ -152,6 +156,7 @@ class TimerViewModel: ObservableObject {
         self.feedbackProvider = feedbackProvider
         // 延迟恢复状态，避免初始化时的崩溃
         Task { @MainActor in
+            self.loadSessions()
             self.restoreState()
             self.startTimerMonitoring()
         }
@@ -257,9 +262,9 @@ class TimerViewModel: ObservableObject {
             .sink { [weak self] _ in
                 guard let self = self else { return }
                 self.checkTimerCompletion()
-                // 觸發 UI 更新（每秒更新一次以優化性能）
+                // 觸發 UI 更新
                 if self.isRunning {
-                    self.uiUpdateTrigger += 1
+                    self.uiUpdateTrigger &+= 1
                 }
             }
     }
@@ -280,6 +285,7 @@ class TimerViewModel: ObservableObject {
             timestamp: Date()
         )
         sessions.append(completedSession)
+        saveSessions()
         
         // 如果是工作會話，增加計數
         if sessionMode == .work {
@@ -294,9 +300,10 @@ class TimerViewModel: ObservableObject {
         pausedRemainingTime = 0  // 清除暫停時間
         runningDuration = 0  // 清除運行時長
         
-        // 觸發平台特定的反饋
+        // 觸發平台特定的反饋（先捕獲當前模式，避免 Task 執行時 sessionMode 已切換）
+        let wasWorkMode = sessionMode == .work
         Task {
-            await feedbackProvider.triggerCompletion(isWorkMode: sessionMode == .work)
+            await feedbackProvider.triggerCompletion(isWorkMode: wasWorkMode)
         }
         
         // 自動切換模式
@@ -309,8 +316,7 @@ class TimerViewModel: ObservableObject {
                 sessionMode = .shortBreak
             }
         } else if sessionMode == .longBreak {
-            // 大休息結束，清空番茄點，進入工作
-            sessionsCompleted = 0
+            // 大休息結束，進入工作（不重置 sessionsCompleted，保留每日統計）
             sessionMode = .work
         } else {
             // 小休息結束，進入工作
@@ -321,6 +327,22 @@ class TimerViewModel: ObservableObject {
         
         // 自動開始下一個週期（可選，註解掉則不自動開始）
         // startTimer()
+    }
+    
+    // MARK: - Persistence Methods
+    private func saveSessions() {
+        if let data = try? JSONEncoder().encode(sessions) {
+            UserDefaults.standard.set(data, forKey: Self.sessionsKey)
+        }
+        UserDefaults.standard.set(sessionsCompleted, forKey: Self.sessionsCompletedKey)
+    }
+    
+    private func loadSessions() {
+        if let data = UserDefaults.standard.data(forKey: Self.sessionsKey),
+           let decoded = try? JSONDecoder().decode([Session].self, from: data) {
+            sessions = decoded
+        }
+        sessionsCompleted = UserDefaults.standard.integer(forKey: Self.sessionsCompletedKey)
     }
     
     // MARK: - Settings Methods
