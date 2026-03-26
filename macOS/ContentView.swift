@@ -129,6 +129,7 @@ struct ContentView: View {
                     )
             }
             .buttonStyle(.plain)
+            .keyboardShortcut("r", modifiers: .command)
             .scaleEffect(1.0)
             .animation(DesignSystem.animationFast, value: viewModel.isRunning)
             
@@ -160,6 +161,7 @@ struct ContentView: View {
                     )
             }
             .buttonStyle(.plain)
+            .keyboardShortcut(.return, modifiers: [])
             .scaleEffect(1.0)
             .animation(DesignSystem.animationFast, value: viewModel.isRunning)
         }

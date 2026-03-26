@@ -37,6 +37,12 @@ struct SidebarView: View {
                 .frame(width: 1),
             alignment: .leading
         )
+        .onChange(of: showSettings) { _, isShowing in
+            if isShowing {
+                tempFocusMinutes = Double(viewModel.focusMinutes)
+                tempBreakMinutes = Double(viewModel.breakMinutes)
+            }
+        }
     }
     
     // MARK: - Stats View
