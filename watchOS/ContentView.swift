@@ -117,11 +117,11 @@ struct TimerPageView: View {
     private var themeColor: Color {
         switch viewModel.sessionMode {
         case .work:
-            return Color(hex: "D69E2E")  // 橘色
+            return DesignSystem.Colors.workMode
         case .shortBreak:
-            return Color(hex: "38A169")  // 綠色
+            return DesignSystem.Colors.restMode
         case .longBreak:
-            return Color(hex: "3F51B5")  // 藍色
+            return DesignSystem.Colors.brandAccent
         }
     }
     
@@ -323,10 +323,10 @@ struct SettingsPageView: View {
                     tempMinutes = newMinutes
                 }
             }
-        }
-        .onAppear {
-            tempMinutes = viewModel.currentMinutes
-            crownValue = Double(tempMinutes)
+            .onAppear {
+                tempMinutes = viewModel.currentMinutes
+                crownValue = Double(tempMinutes)
+            }
         }
     }
     
@@ -344,11 +344,11 @@ struct SettingsPageView: View {
     private var themeColor: Color {
         switch viewModel.sessionMode {
         case .work:
-            return Color(hex: "D69E2E")  // 橘色
+            return DesignSystem.Colors.workMode
         case .shortBreak:
-            return Color(hex: "38A169")  // 綠色
+            return DesignSystem.Colors.restMode
         case .longBreak:
-            return Color(hex: "3F51B5")  // 藍色
+            return DesignSystem.Colors.brandAccent
         }
     }
     
@@ -370,13 +370,13 @@ struct SettingsPageView: View {
             shakeOffset = 10
         }
         
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(100))
             withAnimation(.spring(response: 0.2, dampingFraction: 0.3)) {
                 shakeOffset = -10
             }
-        }
-        
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+            
+            try? await Task.sleep(for: .milliseconds(100))
             withAnimation(.spring(response: 0.2, dampingFraction: 0.5)) {
                 shakeOffset = 0
             }

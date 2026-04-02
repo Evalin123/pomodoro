@@ -13,12 +13,14 @@ struct SidebarView: View {
     
     @State private var tempFocusMinutes: Double
     @State private var tempBreakMinutes: Double
+    @State private var tempLongBreakMinutes: Double
     
     init(viewModel: TimerViewModel, showSettings: Binding<Bool>) {
         self.viewModel = viewModel
         self._showSettings = showSettings
         self._tempFocusMinutes = State(initialValue: Double(viewModel.focusMinutes))
         self._tempBreakMinutes = State(initialValue: Double(viewModel.breakMinutes))
+        self._tempLongBreakMinutes = State(initialValue: Double(viewModel.longBreakMinutes))
     }
     
     var body: some View {
@@ -41,6 +43,7 @@ struct SidebarView: View {
             if isShowing {
                 tempFocusMinutes = Double(viewModel.focusMinutes)
                 tempBreakMinutes = Double(viewModel.breakMinutes)
+                tempLongBreakMinutes = Double(viewModel.longBreakMinutes)
             }
         }
     }
@@ -138,6 +141,24 @@ struct SidebarView: View {
                         }
                     }
                     
+                    // Long break duration
+                    VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                        Text("Long Break Duration")
+                            .font(.system(size: DesignSystem.FontSize.sm, weight: .medium))
+                            .foregroundStyle(DesignSystem.Colors.textMuted)
+                        
+                        HStack(spacing: DesignSystem.Spacing.sm) {
+                            Slider(value: $tempLongBreakMinutes, in: 1...60, step: 1)
+                                .tint(DesignSystem.Colors.brandAccent)
+                            
+                            Text("\(Int(tempLongBreakMinutes)) min")
+                                .font(.system(size: DesignSystem.FontSize.base, weight: .medium, design: .rounded))
+                                .foregroundStyle(DesignSystem.Colors.textPrimary)
+                                .frame(width: 64, alignment: .trailing)
+                                .monospacedDigit()
+                        }
+                    }
+                    
                     // Save button
                     Button(action: saveSettings) {
                         Text("Save Changes")
@@ -184,7 +205,8 @@ struct SidebarView: View {
     private func saveSettings() {
         viewModel.updateSettings(
             focusMinutes: Int(tempFocusMinutes),
-            breakMinutes: Int(tempBreakMinutes)
+            breakMinutes: Int(tempBreakMinutes),
+            longBreakMinutes: Int(tempLongBreakMinutes)
         )
         withAnimation(DesignSystem.animationNormal) {
             showSettings = false

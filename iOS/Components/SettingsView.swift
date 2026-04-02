@@ -13,11 +13,13 @@ struct SettingsView: View {
     
     @State private var tempFocusMinutes: Double
     @State private var tempBreakMinutes: Double
+    @State private var tempLongBreakMinutes: Double
     
     init(viewModel: TimerViewModel) {
         self.viewModel = viewModel
         self._tempFocusMinutes = State(initialValue: Double(viewModel.focusMinutes))
         self._tempBreakMinutes = State(initialValue: Double(viewModel.breakMinutes))
+        self._tempLongBreakMinutes = State(initialValue: Double(viewModel.longBreakMinutes))
     }
     
     var body: some View {
@@ -107,6 +109,35 @@ struct SettingsView: View {
                             )
                         }
                         
+                        // Long Break Duration
+                        VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                            Text("Long Break Duration")
+                                .font(.system(size: 14, weight: .medium))
+                                .foregroundStyle(DesignSystem.Colors.textMuted)
+                            
+                            VStack(spacing: DesignSystem.Spacing.md) {
+                                HStack {
+                                    Text("\(Int(tempLongBreakMinutes))")
+                                        .font(.system(size: 48, weight: .bold, design: .rounded))
+                                        .foregroundStyle(DesignSystem.Colors.brandAccent)
+                                        .monospacedDigit()
+                                    
+                                    Text("min")
+                                        .font(.system(size: 24, weight: .medium))
+                                        .foregroundStyle(DesignSystem.Colors.textMuted)
+                                }
+                                
+                                Slider(value: $tempLongBreakMinutes, in: 1...60, step: 1)
+                                    .tint(DesignSystem.Colors.brandAccent)
+                            }
+                            .padding(DesignSystem.Spacing.lg)
+                            .background(
+                                RoundedRectangle(cornerRadius: DesignSystem.Radius.xl)
+                                    .fill(.white.opacity(0.7))
+                                    .organicShadow()
+                            )
+                        }
+                        
                         // Save button
                         Button(action: saveSettings) {
                             Text("Save Changes")
@@ -143,7 +174,8 @@ struct SettingsView: View {
     private func saveSettings() {
         viewModel.updateSettings(
             focusMinutes: Int(tempFocusMinutes),
-            breakMinutes: Int(tempBreakMinutes)
+            breakMinutes: Int(tempBreakMinutes),
+            longBreakMinutes: Int(tempLongBreakMinutes)
         )
         dismiss()
     }

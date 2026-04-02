@@ -218,17 +218,6 @@ class TimerViewModel: ObservableObject {
         sessionModeStorage = SessionMode.work.rawValue
     }
     
-    func switchMode() {
-        // 手動切換模式（如果需要的話）
-        switch sessionMode {
-        case .work:
-            sessionMode = .shortBreak
-        case .shortBreak, .longBreak:
-            sessionMode = .work
-        }
-        sessionModeStorage = sessionMode.rawValue
-    }
-    
     // MARK: - Private Methods
     private func restoreState() {
         // 恢復 sessionMode
@@ -340,9 +329,16 @@ class TimerViewModel: ObservableObject {
     private func loadSessions() {
         if let data = UserDefaults.standard.data(forKey: Self.sessionsKey),
            let decoded = try? JSONDecoder().decode([Session].self, from: data) {
-            sessions = decoded
+            // 只保留當天的紀錄
+            let calendar = Calendar.current
+            sessions = decoded.filter { calendar.isDateInToday($0.timestamp) }
+            // 如果有過期資料被過濾掉，立即更新持久化
+            if sessions.count != decoded.count {
+                saveSessions()
+            }
         }
-        sessionsCompleted = UserDefaults.standard.integer(forKey: Self.sessionsCompletedKey)
+        // sessionsCompleted 也只計算當天的專注會話數
+        sessionsCompleted = sessions.filter { $0.type == .focus }.count
     }
     
     // MARK: - Settings Methods
