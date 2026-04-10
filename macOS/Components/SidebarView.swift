@@ -170,18 +170,23 @@ struct SidebarView: View {
                                 RoundedRectangle(cornerRadius: DesignSystem.Radius.lg)
                                     .fill(
                                         LinearGradient(
-                                            colors: [
+                                            colors: isSaveEnabled ? [
                                                 DesignSystem.Colors.restMode,
                                                 DesignSystem.Colors.restMode.opacity(0.8)
+                                            ] : [
+                                                DesignSystem.Colors.textMuted.opacity(0.3),
+                                                DesignSystem.Colors.textMuted.opacity(0.2)
                                             ],
                                             startPoint: .leading,
                                             endPoint: .trailing
                                         )
                                     )
                             )
-                            .organicShadow(level: 2)
+                            .organicShadow(level: isSaveEnabled ? 2 : 0)
                     }
                     .buttonStyle(.plain)
+                    .disabled(!isSaveEnabled)
+
                 }
                 .padding(DesignSystem.Spacing.lg)
             }
@@ -191,6 +196,50 @@ struct SidebarView: View {
     }
     
     // MARK: - Helper Methods
+    
+    /// 計時器是否已啟動（運行中或暫停）
+    private var isTimerActive: Bool {
+        viewModel.isRunning || viewModel.pausedRemainingTime > 0
+    }
+    
+    /// 基準時間（當前模式的分鐘數）
+    private var savedMinutes: Int {
+        if isTimerActive {
+            // 計時器啟動時，基準是運行時的時長
+            let savedDuration = viewModel.runningDuration > 0 ? viewModel.runningDuration : viewModel.currentDuration
+            return Int(savedDuration) / 60
+        } else {
+            // 未啟動時，基準是當前設定
+            return viewModel.currentMinutes
+        }
+    }
+    
+    /// Save Changes 按鈕是否啟用
+    private var isSaveEnabled: Bool {
+        let draftMinutes: Int
+        let currentSavedMinutes: Int
+        
+        switch viewModel.sessionMode {
+        case .work:
+            draftMinutes = Int(tempFocusMinutes)
+            currentSavedMinutes = viewModel.focusMinutes
+        case .shortBreak:
+            draftMinutes = Int(tempBreakMinutes)
+            currentSavedMinutes = viewModel.breakMinutes
+        case .longBreak:
+            draftMinutes = Int(tempLongBreakMinutes)
+            currentSavedMinutes = viewModel.longBreakMinutes
+        }
+        
+        if isTimerActive {
+            // 計時器已啟動：只有草稿大於基準才啟用
+            return draftMinutes > savedMinutes
+        } else {
+            // 計時器未啟動：只要有變更就啟用
+            return draftMinutes != currentSavedMinutes
+        }
+    }
+    
     private func formatFocusTime(_ timeInterval: TimeInterval) -> String {
         let hours = Int(timeInterval) / 3600
         let minutes = (Int(timeInterval) % 3600) / 60

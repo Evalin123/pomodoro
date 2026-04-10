@@ -57,8 +57,8 @@ class TimerViewModel: ObservableObject {
     @AppStorage("focusMinutes") var focusMinutes: Int = 25
     @AppStorage("breakMinutes") var breakMinutes: Int = 5
     @AppStorage("longBreakMinutes") var longBreakMinutes: Int = 15
-    @AppStorage("pausedRemainingTime") private var pausedRemainingTime: TimeInterval = 0
-    @AppStorage("runningDuration") private var runningDuration: TimeInterval = 0  // 運行時的初始時長
+    @AppStorage("pausedRemainingTime") var pausedRemainingTime: TimeInterval = 0
+    @AppStorage("runningDuration") var runningDuration: TimeInterval = 0  // 運行時的初始時長
     
     // MARK: - Private Properties
     private var timerCancellable: AnyCancellable?
