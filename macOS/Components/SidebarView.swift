@@ -216,27 +216,36 @@ struct SidebarView: View {
     
     /// Save Changes 按鈕是否啟用
     private var isSaveEnabled: Bool {
-        let draftMinutes: Int
-        let currentSavedMinutes: Int
+        let draftFocus = Int(tempFocusMinutes)
+        let draftBreak = Int(tempBreakMinutes)
+        let draftLongBreak = Int(tempLongBreakMinutes)
         
-        switch viewModel.sessionMode {
-        case .work:
-            draftMinutes = Int(tempFocusMinutes)
-            currentSavedMinutes = viewModel.focusMinutes
-        case .shortBreak:
-            draftMinutes = Int(tempBreakMinutes)
-            currentSavedMinutes = viewModel.breakMinutes
-        case .longBreak:
-            draftMinutes = Int(tempLongBreakMinutes)
-            currentSavedMinutes = viewModel.longBreakMinutes
+        // 檢查是否有任何變動
+        let hasChanges = draftFocus != viewModel.focusMinutes ||
+                         draftBreak != viewModel.breakMinutes ||
+                         draftLongBreak != viewModel.longBreakMinutes
+        
+        // 無變動時禁用
+        if !hasChanges {
+            return false
         }
         
-        if isTimerActive {
-            // 計時器已啟動：只有草稿大於基準才啟用
-            return draftMinutes > savedMinutes
-        } else {
-            // 計時器未啟動：只要有變更就啟用
-            return draftMinutes != currentSavedMinutes
+        // 計時器未運行：有變動就啟用
+        if !isTimerActive {
+            return true
+        }
+        
+        // 計時器運行中：檢查當前模式的時間是否減少
+        switch viewModel.sessionMode {
+        case .work:
+            // Work 模式運行中：Work 時間不能減少
+            return draftFocus >= savedMinutes
+        case .shortBreak:
+            // Break 模式運行中：Break 時間不能減少
+            return draftBreak >= savedMinutes
+        case .longBreak:
+            // Long Break 模式運行中：Long Break 時間不能減少
+            return draftLongBreak >= savedMinutes
         }
     }
     
